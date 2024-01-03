@@ -1,0 +1,12 @@
+name: CI
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - run: sudo apt-get install g++ make cmake
+      - run: sudo apt-get install libavutil-dev libavformat-dev libavcodec-dev libswscale-dev
+      - run: mkdir -p build && cd build && cmake .. && make
