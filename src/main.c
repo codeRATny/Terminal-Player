@@ -1,12 +1,28 @@
 #include "TerminalPlayer.h"
 
+void sig_int(int sig)
+{
+    system("clear");
+    terminal_cursor_on();
+    exit(1);
+}
+
 int main(int argc, char **argv)
 {
+    signal(SIGINT, sig_int);
+
     if (argc < 2)
     {
         printf("Please specify video file\n");
         return -1;
     }
+
+    int sleep_flag = 1;
+    if (argc == 3)
+    {
+        sleep_flag = atoi(argv[2]);
+    }
+
 
     set_player_url(argv[1]);
     init_player();
@@ -27,7 +43,8 @@ int main(int argc, char **argv)
         double fps = av_q2d(input_ctx->streams[video_stream_idx]->r_frame_rate);
         double sleep_time = 1.0 / (double)fps;
 
-        usleep(sleep_time * 1000 * 1000);
+        if (no_file_flag && sleep_flag)
+            usleep(sleep_time * 1000 * 1000);
 
         TerminalResolution cur_resol = terminal_resolution();
 
@@ -58,7 +75,7 @@ int main(int argc, char **argv)
         }
 
         terminal_canvas_fini(canv);
-        system("clear");
+        terminal_seek_coord(1,1);
         write(STDOUT_FILENO, canv->data, strlen(canv->data) + 1);
         av_packet_unref(pack);
     }

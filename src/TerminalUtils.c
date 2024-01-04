@@ -3,6 +3,7 @@
 static const char cursor_off_escape[] = "\e[?25l";
 static const char cursor_on_escape[] = "\e[?25h";
 static const char clear_escape[] = "\033[2J";
+static const char set_x_y_escape[] = "\e[%d;%dH";
 
 void terminal_cursor_off()
 {
@@ -17,6 +18,15 @@ void terminal_cursor_on()
 void terminal_clear()
 {
     write(STDOUT_FILENO, clear_escape, sizeof(clear_escape));
+}
+
+void terminal_seek_coord(int x, int y)
+{
+    char buf[512];
+
+    snprintf(buf, 512, set_x_y_escape, x, y);
+
+    write(STDOUT_FILENO, buf, strlen(buf) + 1);
 }
 
 TerminalResolution terminal_resolution()

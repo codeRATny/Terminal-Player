@@ -31,6 +31,7 @@ extern int video_stream_idx;
 extern struct SwsContext *swsctx;
 extern TerminalResolution resol;
 extern TerminalCanvas *canv;
+extern uint8_t no_file_flag;
 
 void init_video();
 void init_decoder();

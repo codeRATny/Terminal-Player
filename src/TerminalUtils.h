@@ -25,6 +25,7 @@ typedef struct TerminalCanvas
 void terminal_cursor_off();
 void terminal_cursor_on();
 void terminal_clear();
+void terminal_seek_coord(int x, int y);
 TerminalResolution terminal_resolution();
 
 TerminalCanvas *terminal_canvas_alloc();

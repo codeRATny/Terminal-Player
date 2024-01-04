@@ -17,11 +17,14 @@ TerminalCanvas *canv = NULL;
 
 char *video_url = NULL;
 
+uint8_t no_file_flag = 0;
+
 void init_video()
 {
     input_ctx = avformat_alloc_context();
     avformat_open_input(&input_ctx, video_url, NULL, NULL);
     avformat_find_stream_info(input_ctx, NULL);
+    no_file_flag = !input_ctx->iformat->read_play;
 
     for (int i = 0; i < input_ctx->nb_streams; i++)
     {
@@ -82,12 +85,15 @@ void set_player_url(char *url)
 
 void init_player()
 {
+    av_log_set_level(AV_LOG_QUIET);
+    terminal_cursor_off();
     init_video();
     init_decoder();
     init_display();
     init_frames();
     init_sws();
-    av_read_play(input_ctx);
+    if (no_file_flag)
+        av_read_play(input_ctx);
 }
 
 void reinit_player(TerminalResolution res)
@@ -127,4 +133,5 @@ void deinit_player()
     avcodec_free_context(&codec_ctx);
     sws_freeContext(swsctx);
     terminal_canvas_free(&canv);
+    terminal_cursor_on();
 }
