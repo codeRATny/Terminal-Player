@@ -17,11 +17,25 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/sysinfo.h>
 #include <stdlib.h>
+#include <getopt.h>
+#include <ctype.h>
 
 #include "Colors.h"
 #include "TerminalUtils.h"
 
+typedef struct TaskParams
+{
+    size_t line_offset;
+    size_t line_count;
+
+    size_t canv_idx;
+
+} TaskParams;
+
+extern TaskParams *task_params;
+extern TerminalCanvas **painter_canvases;
 extern AVFormatContext *input_ctx;
 extern AVCodecContext *codec_ctx;
 extern AVPacket *pack;
@@ -33,14 +47,11 @@ extern TerminalResolution resol;
 extern TerminalCanvas *canv;
 extern uint8_t no_file_flag;
 
-void init_video();
-void init_decoder();
-void init_display();
-void init_frames();
-void init_sws();
+extern int painter_threads;
+extern int rgb_flag;
+extern int realtime_flag;
 
-void set_player_url(char *url);
-void init_player();
+int init_player(int argc, char **argv);
 
 void reinit_player(TerminalResolution res);
 

@@ -17,7 +17,13 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
     libavutil
 )
 
+add_subdirectory(${PROJECT_SOURCE_DIR}/contrib)
+
 add_executable(${TARGET_NAME} ${SRC_LIST})
 target_link_libraries(${TARGET_NAME} PkgConfig::LIBAV)
-# target_compile_options(main PRIVATE -fsanitize=leak)
-# target_link_options(main PRIVATE -fsanitize=leak)
+target_link_libraries(${TARGET_NAME} kd_tree)
+target_link_libraries(${TARGET_NAME} thread_pool)
+target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/contrib/C-Thread-Pool)
+target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/contrib/kdtree)
+# target_compile_options(terminal-player PRIVATE -fsanitize=leak)
+# target_link_options(terminal-player PRIVATE -fsanitize=leak)

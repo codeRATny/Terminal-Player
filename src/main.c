@@ -1,33 +1,58 @@
 #include "TerminalPlayer.h"
+#include "Pallete.h"
+#include <sys/time.h>
+#include "thpool.h"
 
 void sig_int(int sig)
 {
-    system("clear");
+    (void)!system("clear");
     terminal_cursor_on();
     exit(1);
+}
+
+uint64_t get_current_time() {
+	struct timeval t;
+	gettimeofday(&t, 0);
+	return t.tv_sec * 1000000 + t.tv_usec;
+}
+
+void task(void *arg)
+{
+	TaskParams *params = (TaskParams*)arg;
+
+    for (size_t line = params->line_offset; line < params->line_offset + params->line_count; line++)
+    {
+        for (size_t dot = 0; dot < resized_frame->linesize[0]; dot += 3)
+        {
+            if (dot < resol.x * 3)
+            {
+                int r = resized_frame->data[0][resized_frame->linesize[0] * line + dot];
+                int g = resized_frame->data[0][resized_frame->linesize[0] * line + dot + 1];
+                int b = resized_frame->data[0][resized_frame->linesize[0] * line + dot + 2];
+                int idd = search_nearest_color(r, g, b);
+
+                terminal_canvas_add_pixel_rgb(painter_canvases[params->canv_idx], idd);
+            }
+        }
+    }
 }
 
 int main(int argc, char **argv)
 {
     signal(SIGINT, sig_int);
 
-    if (argc < 2)
+    if (init_player(argc, argv))
     {
-        printf("Please specify video file\n");
         return -1;
     }
 
-    int sleep_flag = 1;
-    if (argc == 3)
-    {
-        sleep_flag = atoi(argv[2]);
-    }
+    threadpool thpool = thpool_init(painter_threads);
 
+    (void)!system("clear");
 
-    set_player_url(argv[1]);
-    init_player();
+    pallete_init();
 
-    system("clear");
+    terminal_canvas_reset(canv);
 
     while (av_read_frame(input_ctx, pack) >= 0)
     {
@@ -37,14 +62,14 @@ int main(int argc, char **argv)
             continue;
         }
 
+        uint64_t start = get_current_time();
+        
         avcodec_send_packet(codec_ctx, pack);
-        avcodec_receive_frame(codec_ctx, frame);
+        if (avcodec_receive_frame(codec_ctx, frame))
+            continue;
 
         double fps = av_q2d(input_ctx->streams[video_stream_idx]->r_frame_rate);
-        double sleep_time = 1.0 / (double)fps;
-
-        if (no_file_flag && sleep_flag)
-            usleep(sleep_time * 1000 * 1000);
+        uint64_t sleep_time = (1.0 / (double)fps) * 1000000.0;
 
         TerminalResolution cur_resol = terminal_resolution();
 
@@ -62,21 +87,68 @@ int main(int argc, char **argv)
                   resized_frame->linesize);
 
         terminal_canvas_reset(canv);
-        for (size_t line = 0; line < resol.y; line++)
+
+        if (rgb_flag)
         {
-            for (size_t dot = 0; dot < resized_frame->linesize[0]; dot++)
+            int lines = resol.y;
+            int line_per_thread = lines / painter_threads;
+            int offset_per_thread;
+            for (int i = 0; i < painter_threads; i++)
             {
-                if (dot < resol.x)
+                task_params[i].line_count = line_per_thread;
+                task_params[i].line_offset = line_per_thread * i;
+            }
+
+            lines -= line_per_thread * painter_threads;
+
+            if (lines > 0)
+            {
+                task_params[painter_threads - 1].line_count += lines;
+            }
+
+            for (int i = 0; i < painter_threads; i++)
+            {
+                task_params[i].canv_idx = i;
+		        thpool_add_work(thpool, task, (void*)&task_params[i]);
+	        };
+
+            thpool_wait(thpool);
+
+            for (int i = 0; i < painter_threads; i++)
+            {   
+                memcpy(canv->data + canv->pos, painter_canvases[i]->data, painter_canvases[i]->pos);
+                canv->pos += painter_canvases[i]->pos;
+                terminal_canvas_reset(painter_canvases[i]);
+	        };
+        }
+        else
+        {
+            for (size_t line = 0; line < resol.y; line++)
+            {
+                for (size_t dot = 0; dot < resized_frame->linesize[0]; dot++)
                 {
-                    size_t finded = find_closest_color(resized_frame->data[0][resized_frame->linesize[0] * line + dot]);
-                    terminal_canvas_add_pixel(canv, finded);
+                    if (dot < resol.x)
+                    {
+                        size_t finded = find_closest_color(resized_frame->data[0][resized_frame->linesize[0] * line + dot]);
+                        terminal_canvas_add_pixel(canv, finded);
+                    }
                 }
             }
         }
 
         terminal_canvas_fini(canv);
         terminal_seek_coord(1,1);
-        write(STDOUT_FILENO, canv->data, strlen(canv->data) + 1);
+
+        uint64_t stop = get_current_time();
+        uint64_t elapsed = stop - start;
+
+        if (no_file_flag && realtime_flag)
+        {
+            if (sleep_time > elapsed)
+                usleep((size_t)(sleep_time - elapsed));
+        }
+
+        (void)!write(STDOUT_FILENO, canv->data, strlen(canv->data) + 1);
         av_packet_unref(pack);
     }
 
