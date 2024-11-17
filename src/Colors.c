@@ -26,7 +26,7 @@ size_t find_closest_color(uint8_t color_value)
 
         if (terminal_colors[mid] == color_value)
             return mid;
-            
+
         if (color_value < terminal_colors[mid])
         {
 
