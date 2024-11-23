@@ -6,7 +6,7 @@
 void sig_int(int sig)
 {
     (void)!system("clear");
-    terminal_cursor_on();
+    deinit_player();
     exit(1);
 }
 
@@ -41,12 +41,23 @@ int main(int argc, char **argv)
 {
     signal(SIGINT, sig_int);
 
-    if (init_player(argc, argv))
+    int ret = 0;
+    char *av_err = NULL;
+
+    ret = init_player(argc, argv);
+    if (ret != 0)
     {
-        return -1;
+        av_log(NULL, AV_LOG_ERROR, "<%s:%d> Init player error: %d\n", __FUNCTION__, __LINE__, ret);
+        goto exit;
     }
 
     threadpool thpool = thpool_init(painter_threads);
+    if (thpool == NULL)
+    {
+        av_log(NULL, AV_LOG_ERROR, "<%s:%d> Init threadpool error\n", __FUNCTION__, __LINE__);
+        ret = -1;
+        goto exit;
+    }
 
     (void)!system("clear");
 
@@ -63,8 +74,15 @@ int main(int argc, char **argv)
         }
 
         uint64_t start = get_current_time();
-        
-        avcodec_send_packet(codec_ctx, pack);
+
+        ret = avcodec_send_packet(codec_ctx, pack);
+        if (ret != 0)
+        {
+            av_err = av_err2str(ret);
+            av_log(NULL, AV_LOG_ERROR, "<%s:%d> Error: %s(%d)\n", __FUNCTION__, __LINE__, av_err, ret);
+            goto exit;
+        }
+
         if (avcodec_receive_frame(codec_ctx, frame))
             continue;
 
@@ -75,7 +93,12 @@ int main(int argc, char **argv)
 
         if (cur_resol.x != resol.x || cur_resol.y != resol.y)
         {
-            reinit_player(cur_resol);
+            ret = reinit_player(cur_resol);
+            if (ret != 0)
+            {
+                av_log(NULL, AV_LOG_ERROR, "<%s:%d> Reinit player error: %d\n", __FUNCTION__, __LINE__, ret);
+                goto exit;
+            }
         }
 
         sws_scale(swsctx,
@@ -109,13 +132,19 @@ int main(int argc, char **argv)
             for (int i = 0; i < painter_threads; i++)
             {
                 task_params[i].canv_idx = i;
-		        thpool_add_work(thpool, task, (void*)&task_params[i]);
+
+		        ret = thpool_add_work(thpool, task, (void*)&task_params[i]);
+                if (ret != 0)
+                {
+                    av_log(NULL, AV_LOG_ERROR, "<%s:%d> Add work to the job queue error: %d\n", __FUNCTION__, __LINE__, ret);
+                    goto exit;
+                }
 	        };
 
             thpool_wait(thpool);
 
             for (int i = 0; i < painter_threads; i++)
-            {   
+            {
                 memcpy(canv->data + canv->pos, painter_canvases[i]->data, painter_canvases[i]->pos);
                 canv->pos += painter_canvases[i]->pos;
                 terminal_canvas_reset(painter_canvases[i]);
@@ -137,7 +166,12 @@ int main(int argc, char **argv)
         }
 
         terminal_canvas_fini(canv);
-        terminal_seek_coord(1,1);
+        ret = terminal_seek_coord(1,1);
+        if (ret < 0)
+        {
+            av_log(NULL, AV_LOG_ERROR, "<%s:%d> Seek coord error: %d\n", __FUNCTION__, __LINE__, ret);
+            goto exit;
+        }
 
         uint64_t stop = get_current_time();
         uint64_t elapsed = stop - start;
@@ -148,11 +182,17 @@ int main(int argc, char **argv)
                 usleep((size_t)(sleep_time - elapsed));
         }
 
-        (void)!write(STDOUT_FILENO, canv->data, strlen(canv->data) + 1);
+        ret = write(STDOUT_FILENO, canv->data, strlen(canv->data) + 1);
         av_packet_unref(pack);
+
+        if (ret < 0)
+        {
+            av_log(NULL, AV_LOG_ERROR, "<%s:%d> Stdout write error: %d\n", __FUNCTION__, __LINE__, ret);
+            goto exit;
+        }
     }
 
+exit:
     deinit_player();
-
-    return 0;
+    return ret;
 }

@@ -23,13 +23,13 @@ typedef struct TerminalCanvas
 
 } TerminalCanvas;
 
-void terminal_cursor_off();
-void terminal_cursor_on();
-void terminal_clear();
-void terminal_seek_coord(int x, int y);
+ssize_t terminal_cursor_off();
+ssize_t terminal_cursor_on();
+ssize_t terminal_clear();
+ssize_t terminal_seek_coord(int x, int y);
 TerminalResolution terminal_resolution();
 
-void terminal_canvas_alloc_data(TerminalCanvas *canv);
+int terminal_canvas_alloc_data(TerminalCanvas *canv);
 void terminal_canvas_delete_data(TerminalCanvas *canv);
 
 TerminalCanvas *terminal_canvas_alloc();

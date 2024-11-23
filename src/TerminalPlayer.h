@@ -53,7 +53,7 @@ extern int realtime_flag;
 
 int init_player(int argc, char **argv);
 
-void reinit_player(TerminalResolution res);
+int reinit_player(TerminalResolution res);
 
 void deinit_player();
 
