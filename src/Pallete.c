@@ -25,7 +25,7 @@ int search_nearest_color(float r, float g, float b)
     struct kdres *set = NULL;
     int* data = NULL;
     int result;
-    double range = 5.0;
+    double range = 7.0;
 
     while (1)
     {
@@ -40,11 +40,8 @@ int search_nearest_color(float r, float g, float b)
         }
 
         kd_res_free(set);
-        range += 5.0;
+        range += 7.0;
     }
 
-    // set = kd_nearest_range3(kd, r, g, b, 50);
-
-    // int* data = kd_res_item_data(set);
     return result;
 }

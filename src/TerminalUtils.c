@@ -138,6 +138,27 @@ void terminal_canvas_add_pixel_rgb(TerminalCanvas *canv, size_t pixel_idx)
     canv->pos += len;
 }
 
+void terminal_canvas_start_new_color(TerminalCanvas *canv, size_t pixel_idx)
+{
+    char buff[16];
+    snprintf(buff, 16, "\e[48;5;%ldm", pixel_idx);
+    size_t len = strlen(buff);
+    memcpy(canv->data + canv->pos, buff, len);
+    canv->pos += len;
+}
+
+void terminal_canvas_append_pixel(TerminalCanvas *canv)
+{
+    *(canv->data + canv->pos) = ' ';
+    canv->pos++;
+}
+
+void terminal_canvas_end_prev_pixels(TerminalCanvas *canv)
+{
+    memcpy(canv->data + canv->pos, "\e[0m", 4);
+    canv->pos += 4;
+}
+
 void terminal_canvas_fini(TerminalCanvas *canv)
 {
     canv->data[canv->pos + 1] = '\0';

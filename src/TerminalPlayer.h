@@ -32,6 +32,8 @@ typedef struct TaskParams
 
     size_t canv_idx;
 
+    int *memory_buf;
+
 } TaskParams;
 
 extern TaskParams *task_params;

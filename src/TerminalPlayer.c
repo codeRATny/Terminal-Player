@@ -1,5 +1,9 @@
 #include "TerminalPlayer.h"
 
+#define MAX_VIDEO_WIDTH 3840
+#define MAX_VIDEO_HEIGHT 2160
+#define MEM_PER_PIXEL 17
+
 char video_url[256];
 
 AVFormatContext *input_ctx = NULL;
@@ -18,8 +22,8 @@ TerminalCanvas *canv = NULL;
 TaskParams *task_params = NULL;
 TerminalCanvas **painter_canvases = NULL;
 
-int painter_threads = 8;
-char decoder_threads[16] = "4";
+int painter_threads = 16;
+char decoder_threads[16] = "16";
 int rgb_flag = 1;
 int realtime_flag = 1;
 static int log_lvl = AV_LOG_ERROR;
@@ -434,6 +438,18 @@ int init_player(int argc, char **argv)
         goto exit;
     }
 
+    for (int i = 0; i < painter_threads; i++)
+    {
+        task_params[i].memory_buf = malloc(MAX_VIDEO_WIDTH * MAX_VIDEO_HEIGHT * MEM_PER_PIXEL / painter_threads * __SIZEOF_INT__);
+
+        if (task_params[i].memory_buf == NULL)
+        {
+            av_log(NULL, AV_LOG_ERROR, "<%s:%d> Memory allocation error\n", __FUNCTION__, __LINE__);
+            ret = -1;
+            goto exit;
+        }
+    }
+
     painter_canvases = malloc(__SIZEOF_POINTER__ * painter_threads);
     if (painter_canvases == NULL)
     {
@@ -605,7 +621,15 @@ void deinit_player()
     terminal_cursor_on();
 
     if (task_params != NULL)
+    {
+        for (int i = 0; i < painter_threads; i++)
+        {
+            if (task_params[i].memory_buf)
+                free(task_params[i].memory_buf);
+        }
+
         free(task_params);
+    }
 
     if (painter_canvases != NULL)
         free(painter_canvases);

@@ -1,6 +1,6 @@
 project(terminal-player)
 cmake_minimum_required(VERSION 3.1.3)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g -gdwarf-4")
 set(TARGET_NAME "terminal-player")
 
 

@@ -3,6 +3,9 @@
 #include <sys/time.h>
 #include "thpool.h"
 
+#include <stdbool.h>
+#include <alloca.h>
+
 void sig_int(int sig)
 {
     (void)!system("clear");
@@ -20,9 +23,15 @@ void task(void *arg)
 {
 	TaskParams *params = (TaskParams*)arg;
 
-    for (size_t line = params->line_offset; line < params->line_offset + params->line_count; line++)
+    // printf("size: %d\n", (params->line_count * (resized_frame->linesize[0] / 3)) * 4);
+
+    // int *all_data = malloc((params->line_count * (resized_frame->linesize[0] / 3)) * 4);
+
+    int total_pixels = 0;
+
+    for (int line = params->line_offset; line < params->line_offset + params->line_count; line++)
     {
-        for (size_t dot = 0; dot < resized_frame->linesize[0]; dot += 3)
+        for (int dot = 0; dot < resized_frame->linesize[0]; dot += 3)
         {
             if (dot < resol.x * 3)
             {
@@ -31,14 +40,47 @@ void task(void *arg)
                 int b = resized_frame->data[0][resized_frame->linesize[0] * line + dot + 2];
                 int idd = search_nearest_color(r, g, b);
 
-                terminal_canvas_add_pixel_rgb(painter_canvases[params->canv_idx], idd);
+                params->memory_buf[total_pixels] = idd;
+                total_pixels++;
             }
         }
     }
+
+    char prev_color;
+    bool first = true;
+
+    for (int i = 0; i < total_pixels; i++)
+    {
+        if (first)
+        {
+            terminal_canvas_start_new_color(painter_canvases[params->canv_idx], params->memory_buf[i]);
+            terminal_canvas_append_pixel(painter_canvases[params->canv_idx]);
+        }
+        else
+        {
+            if (params->memory_buf[i] != prev_color)
+            {
+                terminal_canvas_start_new_color(painter_canvases[params->canv_idx], params->memory_buf[i]);
+                terminal_canvas_append_pixel(painter_canvases[params->canv_idx]);
+            }
+            else
+            {
+                terminal_canvas_append_pixel(painter_canvases[params->canv_idx]);
+            }
+        }
+
+        prev_color = params->memory_buf[i];
+    }
+
+    // free(all_data);
+
+    terminal_canvas_end_prev_pixels(painter_canvases[params->canv_idx]);
 }
 
 int main(int argc, char **argv)
 {
+    size_t start = get_current_time();
+
     signal(SIGINT, sig_int);
 
     int ret = 0;
@@ -178,11 +220,14 @@ int main(int argc, char **argv)
 
         if (no_file_flag && realtime_flag)
         {
-            if (sleep_time > elapsed)
-                usleep((size_t)(sleep_time - elapsed));
+            // if (sleep_time > elapsed)
+            //     usleep((size_t)(sleep_time - elapsed));
         }
 
         ret = write(STDOUT_FILENO, canv->data, strlen(canv->data) + 1);
+        // printf("data len: %ld\n", strlen(canv->data) / 1024);
+        // fflush(stdout);
+
         av_packet_unref(pack);
 
         if (ret < 0)
@@ -194,5 +239,10 @@ int main(int argc, char **argv)
 
 exit:
     deinit_player();
+
+    size_t end = get_current_time();
+
+    printf("TOTAL: %ld\n", end - start);
+
     return ret;
 }

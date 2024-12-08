@@ -36,6 +36,11 @@ TerminalCanvas *terminal_canvas_alloc();
 TerminalCanvas *terminal_canvas_alloc2(TerminalResolution resol);
 void terminal_canvas_add_pixel(TerminalCanvas *canv, size_t pixel_idx);
 void terminal_canvas_add_pixel_rgb(TerminalCanvas *canv, size_t pixel_idx);
+void terminal_canvas_start_new_color(TerminalCanvas *canv, size_t pixel_idx);
+void terminal_canvas_append_pixel(TerminalCanvas *canv);
+void terminal_canvas_end_prev_pixels(TerminalCanvas *canv);
+
+
 void terminal_canvas_fini(TerminalCanvas *canv);
 void terminal_canvas_reset(TerminalCanvas *canv);
 void terminal_canvas_free(TerminalCanvas **canv);
